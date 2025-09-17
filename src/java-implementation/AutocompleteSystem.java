@@ -107,6 +107,14 @@ public class AutocompleteSystem {
     }
     
     /**
+     * Update frequency of an existing word
+     */
+    public void updateFrequency(String word, int increment) {
+        trie.updateFrequency(word, increment);
+        wordUsageStats.merge(word, increment, Integer::sum);
+    }
+    
+    /**
      * Add a new word to the system
      */
     public void addWord(String word, int frequency) {

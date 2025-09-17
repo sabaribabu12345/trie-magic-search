@@ -56,47 +56,95 @@ public class Main {
         List<WordFrequency> suggestions = autocomplete.getSuggestions(prefix);
         
         if (suggestions.isEmpty()) {
-            System.out.println(ANSI_YELLOW + "No suggestions found." + ANSI_RESET);
-            System.out.print("Would you like to add '" + prefix + "' as a new word? (y/n): ");
-            String response = scanner.nextLine();
+            System.out.println(ANSI_YELLOW + "\n⚠ No suggestions found for '" + prefix + "'" + ANSI_RESET);
+            System.out.println("\nOptions:");
+            System.out.println("  1. Add '" + prefix + "' as a new word");
+            System.out.println("  2. Try a different prefix");
+            System.out.print("\nYour choice (1/2): ");
             
-            if (response.equalsIgnoreCase("y")) {
-                System.out.print("Enter initial frequency (1-20): ");
-                try {
-                    int freq = Integer.parseInt(scanner.nextLine());
-                    autocomplete.addWord(prefix, freq);
-                    System.out.println(ANSI_GREEN + "✓ Word added successfully!" + ANSI_RESET);
-                } catch (NumberFormatException e) {
-                    System.out.println(ANSI_YELLOW + "Invalid frequency. Word not added." + ANSI_RESET);
+            String choice = scanner.nextLine();
+            
+            if (choice.equals("1")) {
+                System.out.print("Enter initial frequency (1-20, or press Enter for default 5): ");
+                String freqInput = scanner.nextLine();
+                int freq = 5; // default frequency
+                
+                if (!freqInput.isEmpty()) {
+                    try {
+                        freq = Integer.parseInt(freqInput);
+                        if (freq < 1 || freq > 20) {
+                            System.out.println(ANSI_YELLOW + "Frequency out of range. Using default (5)." + ANSI_RESET);
+                            freq = 5;
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println(ANSI_YELLOW + "Invalid frequency. Using default (5)." + ANSI_RESET);
+                    }
+                }
+                
+                autocomplete.addWord(prefix.toLowerCase(), freq);
+                System.out.println(ANSI_GREEN + "\n✓ Word '" + prefix.toLowerCase() + 
+                                 "' added successfully with frequency " + freq + "!" + ANSI_RESET);
+                
+                // Show immediate confirmation by searching again
+                List<WordFrequency> newSuggestions = autocomplete.getSuggestions(prefix);
+                if (!newSuggestions.isEmpty()) {
+                    System.out.println("\nNow showing suggestions for '" + prefix + "':");
+                    displaySuggestions(newSuggestions, prefix);
                 }
             }
+        }
         } else {
-            System.out.println(ANSI_BOLD + "\nTop suggestions for '" + prefix + "':" + ANSI_RESET);
+            displaySuggestions(suggestions, prefix);
             
-            for (int i = 0; i < suggestions.size(); i++) {
-                WordFrequency wf = suggestions.get(i);
-                String frequencyBar = getFrequencyBar(wf.frequency);
-                System.out.printf("  %d. %-20s %s freq: %d%n", 
-                                  (i + 1), wf.word, frequencyBar, wf.frequency);
-            }
+            System.out.println("\nActions:");
+            System.out.println("  1-" + suggestions.size() + ": Select a suggestion");
+            System.out.println("  'a': Add a new word to the system");
+            System.out.println("  Enter: Skip");
+            System.out.print("\nYour choice: ");
             
-            System.out.print("\nSelect a suggestion (1-" + suggestions.size() + 
-                           ") or press Enter to skip: ");
             String selection = scanner.nextLine();
             
-            if (!selection.isEmpty()) {
+            if (selection.equalsIgnoreCase("a")) {
+                // Allow adding a new word even when suggestions exist
+                addNewWordInteractive();
+            } else if (!selection.isEmpty()) {
                 try {
                     int index = Integer.parseInt(selection) - 1;
                     if (index >= 0 && index < suggestions.size()) {
                         String selectedWord = suggestions.get(index).word;
                         autocomplete.selectSuggestion(selectedWord);
-                        System.out.println(ANSI_GREEN + "✓ Selected: " + selectedWord + 
-                                         " (frequency increased)" + ANSI_RESET);
+                        System.out.println(ANSI_GREEN + "\n✓ Selected: '" + selectedWord + 
+                                         "' (frequency increased to " + 
+                                         (suggestions.get(index).frequency + 1) + ")" + ANSI_RESET);
+                    } else {
+                        System.out.println(ANSI_YELLOW + "Invalid selection." + ANSI_RESET);
                     }
                 } catch (NumberFormatException e) {
-                    // Invalid selection, ignore
+                    System.out.println(ANSI_YELLOW + "Invalid selection." + ANSI_RESET);
                 }
             }
+        }
+    }
+    
+    private void displaySuggestions(List<WordFrequency> suggestions, String prefix) {
+        System.out.println(ANSI_BOLD + "\n📝 Top suggestions for '" + prefix + "':" + ANSI_RESET);
+        
+        for (int i = 0; i < suggestions.size(); i++) {
+            WordFrequency wf = suggestions.get(i);
+            String frequencyBar = getFrequencyBar(wf.frequency);
+            String highlightedWord = highlightPrefix(wf.word, prefix);
+            System.out.printf("  %d. %-20s %s freq: %d%n", 
+                              (i + 1), highlightedWord, frequencyBar, wf.frequency);
+        }
+    }
+    
+    private String highlightPrefix(String word, String prefix) {
+        String lowerWord = word.toLowerCase();
+        String lowerPrefix = prefix.toLowerCase();
+        
+        if (lowerWord.startsWith(lowerPrefix)) {
+            return ANSI_BOLD + ANSI_GREEN + word.substring(0, prefix.length()) + 
+                   ANSI_RESET + word.substring(prefix.length());
         }
     }
     
@@ -157,15 +205,76 @@ public class Main {
     }
     
     private void addNewWord() {
+        addNewWordInteractive();
+    }
+    
+    private void addNewWordInteractive() {
+        System.out.println("\n" + ANSI_CYAN + "=== Add New Word ===" + ANSI_RESET);
         System.out.print("Enter new word: ");
-        String word = scanner.nextLine();
-        System.out.print("Enter frequency (1-20): ");
-        try {
-            int freq = Integer.parseInt(scanner.nextLine());
-            autocomplete.addWord(word, freq);
-            System.out.println(ANSI_GREEN + "✓ Word added successfully!" + ANSI_RESET);
-        } catch (NumberFormatException e) {
-            System.out.println(ANSI_YELLOW + "Invalid frequency." + ANSI_RESET);
+        String word = scanner.nextLine().trim();
+        
+        if (word.isEmpty()) {
+            System.out.println(ANSI_YELLOW + "Word cannot be empty." + ANSI_RESET);
+            return;
+        }
+        
+        // Check if word already exists
+        List<WordFrequency> existing = autocomplete.getSuggestions(word);
+        boolean wordExists = false;
+        for (WordFrequency wf : existing) {
+            if (wf.word.equalsIgnoreCase(word)) {
+                wordExists = true;
+                System.out.println(ANSI_YELLOW + "\n⚠ Word '" + word + 
+                                 "' already exists with frequency " + wf.frequency + ANSI_RESET);
+                System.out.print("Do you want to update its frequency? (y/n): ");
+                String update = scanner.nextLine();
+                if (update.equalsIgnoreCase("y")) {
+                    System.out.print("Enter frequency increment (1-10): ");
+                    try {
+                        int increment = Integer.parseInt(scanner.nextLine());
+                        autocomplete.updateFrequency(word, increment);
+                        System.out.println(ANSI_GREEN + "✓ Frequency updated successfully!" + ANSI_RESET);
+                    } catch (NumberFormatException e) {
+                        System.out.println(ANSI_YELLOW + "Invalid increment." + ANSI_RESET);
+                    }
+                }
+                break;
+            }
+        }
+        
+        if (!wordExists) {
+            System.out.print("Enter initial frequency (1-20, or press Enter for default 5): ");
+            String freqInput = scanner.nextLine();
+            int freq = 5;
+            
+            if (!freqInput.isEmpty()) {
+                try {
+                    freq = Integer.parseInt(freqInput);
+                    if (freq < 1 || freq > 20) {
+                        System.out.println(ANSI_YELLOW + "Frequency out of range. Using default (5)." + ANSI_RESET);
+                        freq = 5;
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println(ANSI_YELLOW + "Invalid frequency. Using default (5)." + ANSI_RESET);
+                }
+            }
+            
+            autocomplete.addWord(word.toLowerCase(), freq);
+            System.out.println(ANSI_GREEN + "\n✓ Word '" + word.toLowerCase() + 
+                             "' added successfully with frequency " + freq + "!" + ANSI_RESET);
+            
+            // Show the word in context
+            List<WordFrequency> newResults = autocomplete.getSuggestions(word.substring(0, Math.min(3, word.length())));
+            if (!newResults.isEmpty()) {
+                System.out.println("\nWord now appears in suggestions for prefix '" + 
+                                 word.substring(0, Math.min(3, word.length())) + "':");
+                for (WordFrequency wf : newResults) {
+                    if (wf.word.equals(word.toLowerCase())) {
+                        System.out.println("  → " + wf.word + " (freq: " + wf.frequency + ")");
+                        break;
+                    }
+                }
+            }
         }
     }
     
