@@ -33,6 +33,17 @@ const Index = () => {
     });
   }, [autocomplete]);
 
+  const handleAddWord = useCallback((word: string, frequency: number) => {
+    autocomplete.addWord(word, frequency);
+    setAllWords(autocomplete.getAllWords());
+    forceUpdate({});
+    
+    toast.success(`Added: ${word}`, {
+      description: `Initial frequency: ${frequency}`,
+      duration: 2000,
+    });
+  }, [autocomplete]);
+
   const handleWordCloudClick = useCallback((word: string) => {
     handleSelect(word);
   }, [handleSelect]);
@@ -80,6 +91,7 @@ const Index = () => {
           <SearchBar 
             onSearch={handleSearch}
             onSelect={handleSelect}
+            onAddWord={handleAddWord}
             searchHistory={searchHistory}
           />
 
